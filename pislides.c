@@ -1,7 +1,3 @@
-//
-// shapedemo: testbed for OpenVG APIs
-// Anthony Starks (ajstarks@gmail.com)
-//
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
