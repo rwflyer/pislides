@@ -2,16 +2,11 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <fcntl.h>
+// #include <fcntl.h>
 #include <dirent.h>
 #include <fnmatch.h>
 
-#include "VG/openvg.h"
-#include "VG/vgu.h"
-
-// this from the openvg wrapper library
-#include "fontinfo.h"
-#include "shapes.h"
+#include "vgwrap.h"
 
 int screenWidth, screenHeight;
 
@@ -28,11 +23,14 @@ void waituntil(int endchar) {
 }
 
 
+
+
+
 void render_image(char * filename)
 {
   Start(screenWidth, screenHeight);
   Background(0, 0, 0);
-  Image(0, 0, 1920, 1024, filename);
+  ImageToScreenWithoutTransform(0, 0, 1920, 1024, filename);
   End();
 }
 
@@ -64,7 +62,7 @@ void rotate_images()
 int main(int argc, char ** argv)
 {
   saveterm();
-  init(&screenWidth, &screenHeight);
+  vgwrap_init(&screenWidth, &screenHeight, 1);
   rawterm();
 
   //render_image("images/DSC01660.JPG");
@@ -73,6 +71,6 @@ int main(int argc, char ** argv)
   waituntil(0x1b);
 
   restoreterm();
-  finish();
+  vgwrap_finish();
   return 0;
 }
