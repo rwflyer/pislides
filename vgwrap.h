@@ -16,6 +16,9 @@ extern void restoreterm();
 extern void rawterm();
 
 // Transformations
+extern void SetPathToSurfaceTransform();
+extern void SetImageToSurfaceTransform();
+
 extern void Translate(VGfloat, VGfloat);
 extern void Rotate(VGfloat);
 extern void Shear(VGfloat, VGfloat);

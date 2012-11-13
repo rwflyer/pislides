@@ -14,6 +14,22 @@ extern STATE_T * state;	// global graphics state
 // Transformations
 //
 
+void SetTransformMode(VGMatrixMode matrixMode)
+{
+  vgSeti(VG_MATRIX_MODE, matrixMode);
+}
+
+void SetPathToSurfaceTransform()
+{
+  SetTransformMode(VG_MATRIX_PATH_USER_TO_SURFACE);
+}
+
+void SetImageToSurfaceTransform()
+{
+  SetTransformMode(VG_MATRIX_IMAGE_USER_TO_SURFACE);
+}
+
+
 // Translate the coordinate system to x,y
 void Translate(VGfloat x, VGfloat y) {
 	vgTranslate(x, y);
@@ -246,7 +262,13 @@ void Arc(VGfloat x, VGfloat y, VGfloat w, VGfloat h, VGfloat sa, VGfloat aext) {
 }
 
 // Start begins the picture, clearing a rectangular region with a specified color
-void Start(int width, int height) {
+void Start(int width, int height)
+{
+	SetImageToSurfaceTransform();
+	vgLoadIdentity();
+	SetPathToSurfaceTransform();
+	vgLoadIdentity();
+
 	VGfloat color[4] = { 255, 255, 255, 1 };
 	vgSetfv(VG_CLEAR_COLOR, 4, color);
 	vgClear(0, 0, width, height);
@@ -254,7 +276,6 @@ void Start(int width, int height) {
 	setfill(color);
 	setstroke(color);
 	StrokeWidth(0);
-	vgLoadIdentity();
 }
 
 // End checks for errors, and renders to the display

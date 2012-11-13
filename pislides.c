@@ -30,7 +30,18 @@ void render_image(char * filename)
 {
   Start(screenWidth, screenHeight);
   Background(0, 0, 0);
-  ImageToScreenWithoutTransform(0, 0, 1920, 1024, filename);
+
+  VGImage img = createImageFromJpeg(filename);
+  // vgSetPixels(x, y, img, 0, 0, w, h);
+
+  SetImageToSurfaceTransform();
+  Translate(100, 100);
+  Scale(0.5, 0.5);
+
+  vgDrawImage(img);
+  vgDestroyImage(img);
+
+  //   ImageToScreenWithoutTransform(0, 0, 1920, 1024, filename);
   End();
 }
 
