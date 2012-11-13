@@ -10,40 +10,44 @@
 
 int screenWidth, screenHeight;
 
-// wait for a specific character 
-void waituntil(int endchar) {
-    int key;
 
-    for (;;) {
-        key = getchar();
-        if (key == endchar || key == '\n') {
-            break;
-        }
-    }
-}
+typedef struct _CenteredScaledImage {
+  VGImage img;
+  VGfloat imageHeight;
+  VGfloat imageWidth;
+  // scaling ratios for each dimension, smallest indicates the dominant axis
+  // for scaling
+  VGfloat scaleX;
+  VGfloat scaleY;
+
+  // final scaling factor used in setting up the transform
+  VGfloat finalScale;
+  VGfloat offsetX;
+  VGfloat offsetY;
+} CenteredScaledImage;
 
 
-
-
-
-void render_image(char * filename)
+CenteredScaledImage * LoadScaledImage(char * filename)
 {
-  Start(screenWidth, screenHeight);
-  Background(0, 0, 0);
-
-  VGImage img = createImageFromJpeg(filename);
+  CenteredScaledImage * csv = (CenteredScaledImage *) malloc(sizeof(CenteredScaledImage));
+  
+  csv->img = createImageFromJpeg(filename);
 
   // calculate transform to make the image appear scaled and centered
   // on screen
   VGfloat imageHeight, imageWidth;
   VGfloat screenWidthf = (VGfloat) screenWidth;
   VGfloat screenHeightf = (VGfloat) screenHeight;
-  imageWidth = (VGfloat) vgGetParameteri(img, VG_IMAGE_WIDTH);
-  imageHeight = (VGfloat) vgGetParameteri(img, VG_IMAGE_HEIGHT);
+  imageWidth = (VGfloat) vgGetParameteri(csv->img, VG_IMAGE_WIDTH);
+  csv->imageWidth = imageWidth;
+  imageHeight = (VGfloat) vgGetParameteri(csv->img, VG_IMAGE_HEIGHT);
+  csv->imageHeight = imageHeight;
 
   VGfloat scaleX, scaleY;
   scaleX = screenWidthf / imageWidth;
+  csv->scaleX = scaleX;
   scaleY = screenHeightf / imageHeight;
+  csv->scaleY = scaleY;
 
   // the smallest scale factor is the dominant dimension to use for scaling
   // both axes, since we want to preserve the aspect ratio
@@ -61,12 +65,55 @@ void render_image(char * filename)
     translateY = (screenHeightf - (imageHeight * finalScale)) / 2;
   }
 
-  SetImageToSurfaceTransform();
-  Translate(translateX, translateY);
-  Scale(finalScale, finalScale);
+  csv->offsetX = translateX;
+  csv->offsetY = translateY;
+  csv->finalScale = finalScale;
 
-  vgDrawImage(img);
-  vgDestroyImage(img);
+  return csv;
+}
+
+
+void FreeScaledImage(CenteredScaledImage * csv)
+{
+  vgDestroyImage(csv->img);
+  free(csv);
+}
+
+// Given an already initialized frame buffer, resets the image transform
+// and draws the image.
+void SetTransformAndDrawScaledImage(CenteredScaledImage * csv)
+{
+  SetImageToSurfaceTransform();
+  vgLoadIdentity();
+  Translate(csv->offsetX, csv->offsetY);
+  Scale(csv->finalScale, csv->finalScale);
+
+  vgDrawImage(csv->img);  
+}
+
+
+
+// wait for a specific character 
+void waituntil(int endchar) {
+    int key;
+
+    for (;;) {
+        key = getchar();
+        if (key == endchar || key == '\n') {
+            break;
+        }
+    }
+}
+
+
+void render_image(char * filename)
+{
+  Start(screenWidth, screenHeight);
+  Background(0, 0, 0);
+
+  CenteredScaledImage * csv = LoadScaledImage(filename);
+  SetTransformAndDrawScaledImage(csv);
+  FreeScaledImage(csv);
 
   End();
 }
