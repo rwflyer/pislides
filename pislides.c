@@ -32,16 +32,42 @@ void render_image(char * filename)
   Background(0, 0, 0);
 
   VGImage img = createImageFromJpeg(filename);
-  // vgSetPixels(x, y, img, 0, 0, w, h);
+
+  // calculate transform to make the image appear scaled and centered
+  // on screen
+  VGfloat imageHeight, imageWidth;
+  VGfloat screenWidthf = (VGfloat) screenWidth;
+  VGfloat screenHeightf = (VGfloat) screenHeight;
+  imageWidth = (VGfloat) vgGetParameteri(img, VG_IMAGE_WIDTH);
+  imageHeight = (VGfloat) vgGetParameteri(img, VG_IMAGE_HEIGHT);
+
+  VGfloat scaleX, scaleY;
+  scaleX = screenWidthf / imageWidth;
+  scaleY = screenHeightf / imageHeight;
+
+  // the smallest scale factor is the dominant dimension to use for scaling
+  // both axes, since we want to preserve the aspect ratio
+  VGfloat finalScale;
+  VGfloat translateX, translateY;
+  if (scaleY < scaleX) {
+    finalScale = scaleY;
+    // we're scaling more on the Y axis, so x axis gets offset
+    translateY = 0;
+    translateX = (screenWidthf - (imageWidth * finalScale)) / 2;
+  }
+  else {
+    finalScale = scaleX;
+    translateX = 0;
+    translateY = (screenHeightf - (imageHeight * finalScale)) / 2;
+  }
 
   SetImageToSurfaceTransform();
-  Translate(100, 100);
-  Scale(0.5, 0.5);
+  Translate(translateX, translateY);
+  Scale(finalScale, finalScale);
 
   vgDrawImage(img);
   vgDestroyImage(img);
 
-  //   ImageToScreenWithoutTransform(0, 0, 1920, 1024, filename);
   End();
 }
 
