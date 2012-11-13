@@ -1,3 +1,4 @@
+OBJDIR=build
 CC = gcc
 # Add -DVGWRAP_INCLUDE_FONTS to get font support
 CFLAGS = -O2 -Wall -I/opt/vc/include -I/opt/vc/include/interface/vcos/pthreads
@@ -6,7 +7,10 @@ VGWRAP_SRCS = oglinit.c vgwrap_render.c vgwrap_terminal.c vgwrap_fonts.c vgwrap_
 
 SRCS = pislides.c $(VGWRAP_SRCS)
 
-OBJS = $(SRCS:.c=.o)
+OBJS = $(addprefix $(OBJDIR)/, $(SRCS:.c=.o))
+
+$(OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
 
 .PHONY: clean
 
@@ -24,7 +28,7 @@ pislides:	$(OBJS)
 
 
 clean:
-	$(RM) *.o *~ pislides
+	$(RM) $(OBJDIR)/*.o *~ pislides
 
 font2openvg:	font2openvg.cpp
 	g++ -I/usr/include/freetype2 font2openvg.cpp -o font2openvg -lfreetype
