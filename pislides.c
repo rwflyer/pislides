@@ -1,3 +1,14 @@
+// Simple app to rotate JPEGs on the Raspberry Pi using OpenVG to write directly
+// to the GPU without having to run X Windows or some other slow and super-fat
+// graphical environment.
+//
+// Intended for digital picture frame, could also be used for signage.
+//
+// See vgwrap for details of GPU API wrapper.
+//   http://www.khronos.org/registry/vg/specs/openvg-1.1.pdf
+//   http://www.khronos.org/files/openvg-quick-reference-card.pdf
+//
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -93,18 +104,6 @@ void SetTransformAndDrawScaledImage(CenteredScaledImage * csv)
 
 
 
-// wait for a specific character 
-void waituntil(int endchar) {
-    int key;
-
-    for (;;) {
-        key = getchar();
-        if (key == endchar || key == '\n') {
-            break;
-        }
-    }
-}
-
 
 void render_image(char * filename)
 {
@@ -119,42 +118,264 @@ void render_image(char * filename)
 }
 
 
-void rotate_images()
+
+// Traverse a directory structure, depth first, marking each containing
+// folder's images together in case the slide show is to be sequential.
+//
+// Once we have a list of all images, we have a database which we can use
+// to display randomly and to also ensure that images are always displayed at
+// least once in a given rotation of the entire image set.
+//
+
+typedef struct _PhotoFileRecord {
+  char * relativeFilePath;
+  int directoryGroupIndex;
+} PhotoFileRecord;
+
+// The master store of photo file records
+PhotoFileRecord * fileRecords = NULL;
+int fileRecordCount = 0;
+
+// used during construction
+int fileRecordAllocated = 0;
+int currentDirectoryGroup;
+
+// an array of indexes into the photo file record which is the playback
+// order for random playback.  This array is populated once per cycle and
+// is always fileRecordCount in size.
+int * randomPlaybackOrderArray = NULL;
+
+
+void InitFileRecords()
 {
-  DIR * dirp = opendir("images");
+  int i;
+  if (fileRecords) {
+    // free all filepath strings
+    PhotoFileRecord * curRecord = fileRecords;
+    for (i = 0; i < fileRecordCount; i++) {
+      free(curRecord->relativeFilePath);
+      curRecord++;
+    }
+    free((void *) fileRecords);
+    fileRecords = NULL;
+  }
+  fileRecordCount = 0;
+  fileRecordAllocated = 0;
+  currentDirectoryGroup = 0;
+}
+
+// Adds a new file record. relativeFilePath memory becomes owned.
+void AddFileRecord(char * relativeFilePath)
+{
+#define FILE_RECORD_ARRAY_GROWTH 50
+  if (fileRecordCount == fileRecordAllocated) {
+    fileRecordAllocated += FILE_RECORD_ARRAY_GROWTH;
+    fileRecords = (PhotoFileRecord *) realloc(fileRecords, fileRecordAllocated * sizeof(PhotoFileRecord));
+  }
+
+  PhotoFileRecord * curRec = fileRecords + fileRecordCount;
+  fileRecordCount++;
+  curRec->relativeFilePath = relativeFilePath;
+  curRec->directoryGroupIndex = currentDirectoryGroup;
+}
+
+
+// meant to be called recursively.  relativeDirPath should *not* end in a
+// trailing slash.
+void ScanImageDirectory(char * relativeDirPath)
+{
+  // array accumulator for paths of subdirs that need to be processed
+  // recursively.  We process them sequentially at the end so as to avoid
+  // messing up the current directory count and to keep the entries in the file
+  // record array grouped together.
+  char ** childDirsArray = NULL;
+  int childDirsAllocated = 0;
+  int childDirsCount = 0;
+
+  DIR * dirp = opendir(relativeDirPath);
   struct dirent * dp;
   while ((dp = readdir(dirp)) != NULL) {
-    // select for *.jpg and *.JPG files, only allow for standard files
-    if (dp->d_type && DT_REG) {
-      if (fnmatch("*.JPG", dp->d_name, 0) == 0 ||
-	  fnmatch("*.jpg", dp->d_name, 0) == 0) {
+    if (dp->d_type == DT_REG || dp->d_type == DT_DIR) {
+      // construct the path for this entry on the heap to save away
+      int dirPathLength = strlen(relativeDirPath);
+      char * entryPath = malloc(dirPathLength + strlen(dp->d_name) + 2);
+      strcpy(entryPath, relativeDirPath);
+      *(entryPath + dirPathLength) = '/';
+      strcpy(entryPath + dirPathLength + 1, dp->d_name);
 
-	char buf[1024];
-	strncpy(buf, "images/", sizeof(buf) - 1);
-	int image_dir_length = strlen(buf);
-
-	strncat(buf, dp->d_name, sizeof(buf) - 1 - image_dir_length);
-	render_image(buf);
-	sleep(5);
+      if (dp->d_type == DT_DIR) {
+	if (strcmp(dp->d_name, ".") == 0 ||
+	    strcmp(dp->d_name, "..") == 0) {
+	  free(entryPath);
+	}
+	else {
+	  if (childDirsAllocated == childDirsCount) {
+	    childDirsAllocated += 16;
+	    childDirsArray = realloc(childDirsArray, childDirsAllocated * sizeof(char *));
+	  }
+	  *(childDirsArray + childDirsCount) = entryPath;
+	  childDirsCount++;
+	}
+      }
+      else {
+	// we only process files that have JPG or jpg extensions.  Ignore
+	// all other files.
+	if (fnmatch("*.JPG", dp->d_name, 0) == 0 ||
+	    fnmatch("*.jpg", dp->d_name, 0) == 0) {
+	  AddFileRecord(entryPath);
+	}
+	else {
+	  free(entryPath);
+	}
       }
     }
   }
   closedir(dirp);
+  currentDirectoryGroup++;
+
+  // now process the subdirs
+  if (childDirsArray) {
+    char ** currentChildDirPath = childDirsArray;
+    int i;
+    for (i = 0; i < childDirsCount; i++) {
+      ScanImageDirectory(*currentChildDirPath);
+      free((void *) *currentChildDirPath);
+      currentChildDirPath++;
+    }
+    free((void *)childDirsArray);
+  }
+}
+
+
+void InitRandomPlaybackOrder()
+{
+  if (randomPlaybackOrderArray) {
+    free(randomPlaybackOrderArray);
+  }
+
+  randomPlaybackOrderArray = malloc(sizeof(int) * fileRecordCount);
+
+  // array that contains the indexes of unused photos.  This array is
+  // always kept compacted and is how we select the next index for the
+  // playback array, to avoid having to spin the random generator multiple
+  // times to find an unallocated entry.
+  int unusedArraySize = fileRecordCount;
+  int * unusedPhotoIndexes = malloc(sizeof(int) * fileRecordCount);
+
+  int selectedItem;
+  int i, j;
+  int * curIndex = unusedPhotoIndexes;
+  for (i = 0; i < fileRecordCount; i++) {
+    *curIndex = i;
+    curIndex++;
+  }
+  
+  curIndex = randomPlaybackOrderArray;
+  for (i = 0; i < fileRecordCount; i++) {
+    // select a random item from the unused array, then compact the array
+    selectedItem = rand() % unusedArraySize;
+    *curIndex++ = *(unusedPhotoIndexes + selectedItem);
+    
+    for (j = selectedItem; j < unusedArraySize - 1; j++) {
+      *(unusedPhotoIndexes + j) = *(unusedPhotoIndexes + j + 1);
+    }
+    unusedArraySize--;
+  }
+
+  free(unusedPhotoIndexes);
+}
+
+
+#if 0
+
+void PrintRandomPlaybackOrder()
+{
+  printf("Random playback order for %d files:\n", fileRecordCount);
+  int i;
+  int * curIndex = randomPlaybackOrderArray;
+  for (i = 0; i < fileRecordCount; i++) {
+    printf("%d: %d\n", i, *curIndex++);
+  }
+  printf("\n");
+}
+
+
+void PrintFileRecords()
+{
+  PhotoFileRecord * fileRec = fileRecords;
+  int i;
+
+  for (i = 0; i < fileRecordCount; i++) {
+    printf("%d: %s %d\n", i, fileRec->relativeFilePath, fileRec->directoryGroupIndex);
+    fileRec++;
+  }
+}
+
+#endif
+
+#ifdef RAW_TERMINAL
+
+// wait for a specific character 
+void waituntil(int endchar) {
+    int key;
+
+    for (;;) {
+        key = getchar();
+        if (key == endchar || key == '\n') {
+            break;
+        }
+    }
+}
+
+#endif
+
+
+void DisplayImagesInPlaybackOrder()
+{
+  int i;
+  PhotoFileRecord * selectedPhoto;
+  int imageIndexToDisplay;
+  for (i = 0; i < fileRecordCount; i++) {
+    imageIndexToDisplay = *(randomPlaybackOrderArray + i);
+    selectedPhoto = fileRecords + imageIndexToDisplay;
+    render_image(selectedPhoto->relativeFilePath);
+    sleep(6);
+  }
+}
+
+
+void IntSignalHandler(int sig, siginfo_t *siginfo, void * context)
+{
+#ifdef RAW_TERMINAL
+  restoreterm();
+#endif
+  vgwrap_finish();
+  exit(0);
 }
 
 
 int main(int argc, char ** argv)
 {
+  srand(time(NULL));
+
+  InitFileRecords();
+  ScanImageDirectory("images");
+
+#ifdef RAW_TERMINAL
   saveterm();
-  vgwrap_init(&screenWidth, &screenHeight, 1);
   rawterm();
+#endif
+  vgwrap_init(&screenWidth, &screenHeight, 1);
 
-  //render_image("images/DSC01660.JPG");
-  rotate_images();
+  while (1) {
+    InitRandomPlaybackOrder();
+    DisplayImagesInPlaybackOrder();
+  }
 
-  waituntil(0x1b);
-
+#ifdef RAW_TERMINAL
   restoreterm();
+#endif
   vgwrap_finish();
+
   return 0;
 }

@@ -1,7 +1,7 @@
 OBJDIR=build
 CC = gcc
 # Add -DVGWRAP_INCLUDE_FONTS to get font support
-CFLAGS = -O2 -Wall -I/opt/vc/include -I/opt/vc/include/interface/vcos/pthreads
+CFLAGS = -Wall -I/opt/vc/include -I/opt/vc/include/interface/vcos/pthreads -g
 
 VGWRAP_SRCS = oglinit.c vgwrap_render.c vgwrap_terminal.c vgwrap_fonts.c vgwrap_init.c vgwrap_images.c
 
