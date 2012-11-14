@@ -339,7 +339,7 @@ void DisplayImagesInPlaybackOrder()
     imageIndexToDisplay = *(randomPlaybackOrderArray + i);
     selectedPhoto = fileRecords + imageIndexToDisplay;
     render_image(selectedPhoto->relativeFilePath);
-    sleep(6);
+    sleep(12);
   }
 }
 
