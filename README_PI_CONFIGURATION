@@ -17,3 +17,6 @@ copy over .emacs
 apt-get install libjpeg-dev
 apt-get install imagemagick
 apt-get install jhead
+
+On the console:
+setterm -powersave off -blank 0
