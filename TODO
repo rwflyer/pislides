@@ -1,0 +1,31 @@
+Eventual todos for photo scroller:
+
+a) Use hardware JPG decoding:
+   http://www.raspberrypi.org/phpBB3/viewtopic.php?f=33&t=15463
+   http://my-cool-projects.blogspot.com/2012_08_01_archive.html
+
+b) Scan network sources for JPGs
+
+c) Support automatically adding photos from smartphone app via
+   Bonjour
+
+d) Automatically resample and auto-rotate input JPGs
+
+e) Config file to store default options
+
+f) Turn on/off screen and even self during off-hours - using monitor plug
+   controller?  Configurable on/off hours via config file.
+
+g) Sensors for in-room movement or presence to turn on / off screen
+
+h) Disable console screensaver timeout
+
+i) Refactor into C++ code for cleaner codebase
+
+j) Cross-fade animations while rotating, Ken Burns effects on images
+
+k) Print text annotations on screen for each image
+
+l) Remote control or audible sensor that can detect a "stop" command and
+   back up/forward on demand, then resume playing after a timeout or
+   resume command.

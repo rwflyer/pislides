@@ -1,0 +1,20 @@
+overscan off
+overclock moderate
+expand SD card partition
+en-us.utf8
+set tz
+Enable ssh
+
+Reboot
+sudo /sbin/shutdown -r now
+
+Login pi/raspberry
+
+sudo apt-get install emacs git
+copy over ssh keys for github
+copy over .emacs
+
+apt-get install libjpeg-dev
+apt-get install golang (or golang-go for minimal)
+apt-get install imagemagick
+apt-get install jhead
