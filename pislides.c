@@ -13,7 +13,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-// #include <fcntl.h>
 #include <dirent.h>
 #include <fnmatch.h>
 
@@ -111,6 +110,7 @@ void render_image(char * filename)
   Background(0, 0, 0);
 
   CenteredScaledImage * csv = LoadScaledImage(filename);
+  vgSeti(VG_BLEND_MODE, VG_BLEND_SRC);
   SetTransformAndDrawScaledImage(csv);
   FreeScaledImage(csv);
 
