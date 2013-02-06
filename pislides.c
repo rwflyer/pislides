@@ -255,6 +255,23 @@ void InitRandomPlaybackOrder()
 
   randomPlaybackOrderArray = malloc(sizeof(int) * fileRecordCount);
 
+  int i;
+  int * curIndex = randomPlaybackOrderArray;
+  for (i = 0; i < fileRecordCount; i++) {
+    *curIndex = i;
+    curIndex++;
+  }
+
+  // implementation of the Durstenfeld version of the Fisher-Yates shuffle
+  for (i = fileRecordCount - 1; i > 0; i--) {
+    // pick random element // 0 <= k <= i
+    int k = rand() % (i + 1);
+    int temp = randomPlaybackOrderArray[k];
+    randomPlaybackOrderArray[k] = randomPlaybackOrderArray[i];
+    randomPlaybackOrderArray[i] = temp;
+  }
+
+#ifdef BOGUS_WAY
   // array that contains the indexes of unused photos.  This array is
   // always kept compacted and is how we select the next index for the
   // playback array, to avoid having to spin the random generator multiple
@@ -283,6 +300,8 @@ void InitRandomPlaybackOrder()
   }
 
   free(unusedPhotoIndexes);
+#endif
+
 }
 
 
